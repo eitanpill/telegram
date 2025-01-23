@@ -1,100 +1,69 @@
-import csv
-import random
-import time
-import telebot
-from datetime import datetime
-import logging
 import os
+import pandas as pd
+import telebot
+from flask import Flask
+from threading import Thread
+import schedule
+import time
 
-# Token and Group ID
-TELEGRAM_TOKEN = '8144674866:AAE8olkDboxTdVWWFeg-a5wU9r10k1gSEmE'
-GROUP_ID = -1002423906987  # Group ID of the target group
-CSV_FILE_PATH = '/Users/eitanpelles/Desktop/telegram-bot/ads.csv'
+# טוען משתנים מסביבת העבודה
+TOKEN = os.getenv("TELEGRAM_BOT_API_TOKEN")
+GROUP_ID = os.getenv("GROUP_ID")
+CSV_FILE_PATH = os.getenv("CSV_FILE_PATH", "ads.csv")
 
-bot = telebot.TeleBot(TELEGRAM_TOKEN)
+# בדיקה אם כל המשתנים נטענו
+if not TOKEN or not GROUP_ID or not CSV_FILE_PATH:
+    raise ValueError("Missing required environment variables!")
 
-# Set up logging
-logging.basicConfig(level=logging.INFO)
+print(f"✅ TOKEN נטען בהצלחה: {TOKEN[:10]}...")
+print(f"✅ GROUP ID נטען בהצלחה: {GROUP_ID}")
 
-# Load the products from CSV
-def load_products():
-    products = []
-    try:
-        with open(CSV_FILE_PATH, 'r', encoding='utf-8') as csv_file:
-            reader = csv.DictReader(csv_file)
-            for row in reader:
-                products.append(row)
-        logging.info(f"Loaded {len(products)} products from CSV.")
-        return products
-    except Exception as e:
-        logging.error(f"Error loading products: {e}")
-        return []
+# טוען את המודעות מתוך קובץ ה-CSV
+try:
+    ads = pd.read_csv(CSV_FILE_PATH)
+    ads.columns = ads.columns.str.strip()  # מסיר רווחים משמות עמודות
+    print(f"✅ נטענו {len(ads)} מודעות בהצלחה!")
+except Exception as e:
+    print(f"❌ שגיאה בטעינת קובץ ה-CSV: {e}")
+    raise
 
-# Format the message
-def format_message(product):
-    """
-    Format the message with image, details, and link to product.
-    """
-    message = (
-        f"🌟 {product['Product Desc']} 🌟\n\n"
-        f"💰 מחיר מקורי: {product['Origin Price']} ₪\n"
-        f"💥 מחיר מבצע: {product['Discount Price']} ₪\n"
-        f"✨ הנחה: {product['Discount']}%\n"
-        f"👍 פידבק חיובי: {product['Positive Feedback']}%\n\n"
-        f"🛒 לרכישת המוצר לחצו כאן: {product['Product Url']}\n"
-    )
-    
-    # If there is an image URL, send the image first
-    image_url = product.get('Image Url', None)
-    if image_url:
-        return image_url, message
-    
-    return None, message
+# יצירת אובייקט של הבוט
+bot = telebot.TeleBot(TOKEN)
 
-# Send a product message with image (if available)
-def send_product(products):
-    """
-    Sends a random product to the group, with an image and product details.
-    """
-    product = random.choice(products)
-    image_url, message = format_message(product)
-    
-    try:
-        if image_url:
-            bot.send_photo(GROUP_ID, image_url, caption=message)
-        else:
+# פונקציה לשליחת הודעות לקבוצה
+def send_ad():
+    for _, row in ads.iterrows():
+        try:
+            product_desc = row.get("Product Desc", "No Description Available")
+            price = row.get("Discount Price", "Unknown Price")
+            link = row.get("Product Url", "No URL Available")
+
+            # בניית ההודעה
+            message = f"📦 {product_desc}\n💰 {price}\n🔗 {link}"
             bot.send_message(GROUP_ID, message)
-        
-        logging.info(f"Sent message: {message}")
-    except Exception as e:
-        logging.error(f"Error sending message: {e}")
+            print(f"✅ הודעה נשלחה: {product_desc}")
+        except Exception as e:
+            print(f"❌ שגיאה בשליחת הודעה: {e}")
 
-# Function to get the current time and check if it's time to send a message
-def schedule_messages(products):
-    """
-    Send a message every hour at an exact time from 8 AM to 11 PM.
-    """
-    current_time = datetime.now()
-    current_hour = current_time.hour
-    current_minute = current_time.minute
-
-    # Check if it's exactly on the hour
-    if current_minute == 0 and 8 <= current_hour <= 23:
-        send_product(products)
-    
-    # Sleep until the next hour (but no need to send immediately)
-    time.sleep(60)  # Check every minute
-
-# Main function to start the bot
-def main():
-    products = load_products()
-    if not products:
-        logging.error("No products loaded. Exiting...")
-        return
-    
-    # Run the schedule in a loop
+# תזמון שליחה אוטומטית
+def schedule_ads():
+    schedule.every().hour.do(send_ad)  # דוגמה: שליחת מודעה כל שעה
     while True:
-        schedule_messages(products)
+        schedule.run_pending()
+        time.sleep(1)
 
+# שרת Flask לשמירה על פעילות הבוט
+app = Flask(__name__)
+
+@app.route('/')
+def home():
+    return "Bot is alive!"
+
+def run_flask():
+    app.run(host='0.0.0.0', port=int(os.getenv("PORT", 8080)))
+
+# הרצת הבוט
 if __name__ == "__main__":
-    main()
+    print("✅ הבוט מוכן ומתחיל לפעול.")
+    Thread(target=run_flask).start()  # הרצת Flask ברקע
+    schedule_ads()  # הפעלת התזמון
