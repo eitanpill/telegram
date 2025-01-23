@@ -1,69 +1,88 @@
 import os
 import pandas as pd
 import telebot
-from flask import Flask
-from threading import Thread
 import schedule
 import time
+from flask import Flask
 
-# טוען משתנים מסביבת העבודה
-TOKEN = os.getenv("TELEGRAM_BOT_API_TOKEN")
-GROUP_ID = os.getenv("GROUP_ID")
-CSV_FILE_PATH = os.getenv("CSV_FILE_PATH", "ads.csv")
+# --- טעינת משתנים ---
+TOKEN = os.getenv('BOT_TOKEN', '8130275609:ABCDEF...')
+GROUP_ID = os.getenv('GROUP_ID', '-1002423906987')
+CSV_FILE = 'ads.csv'
 
-# בדיקה אם כל המשתנים נטענו
-if not TOKEN or not GROUP_ID or not CSV_FILE_PATH:
-    raise ValueError("Missing required environment variables!")
+bot = telebot.TeleBot(TOKEN)
 
+# --- בדיקת חיבור ---
 print(f"✅ TOKEN נטען בהצלחה: {TOKEN[:10]}...")
 print(f"✅ GROUP ID נטען בהצלחה: {GROUP_ID}")
 
-# טוען את המודעות מתוך קובץ ה-CSV
+# --- קריאת הקובץ ---
 try:
-    ads = pd.read_csv(CSV_FILE_PATH)
-    ads.columns = ads.columns.str.strip()  # מסיר רווחים משמות עמודות
+    ads = pd.read_csv(CSV_FILE)
     print(f"✅ נטענו {len(ads)} מודעות בהצלחה!")
 except Exception as e:
-    print(f"❌ שגיאה בטעינת קובץ ה-CSV: {e}")
-    raise
+    print(f"❌ שגיאה בטעינת הקובץ: {e}")
+    ads = pd.DataFrame()
 
-# יצירת אובייקט של הבוט
-bot = telebot.TeleBot(TOKEN)
+# --- פונקציה ליצירת הודעת מודעה ---
+def create_ad_message(row):
+    image_url = row['Image Url']
+    video_url = row['Video Url']
+    product_desc = row['Product Desc']
+    origin_price = row['Origin Price']
+    discount_price = row['Discount Price']
+    discount = row['Discount']
+    sales = row['Sales180Day']
+    positive_feedback = row['Positive Feedback']
+    product_url = row['Product Url']
 
-# פונקציה לשליחת הודעות לקבוצה
+    message = f"""
+📢 *מבצע חדש!*
+
+📸 תמונה: {image_url}
+🎥 וידאו: {video_url}
+
+🛒 *{product_desc}*
+💰 מחיר מקורי: {origin_price}
+🔖 מחיר מבצע: {discount_price}
+💸 הנחה: {discount}%
+🔥 מכירות ב-180 ימים: {sales}
+👍 פידבק חיובי: {positive_feedback}%
+
+🔗 [לרכישה]({product_url})
+"""
+    return message
+
+# --- שליחת הודעת מודעה ---
 def send_ad():
     for _, row in ads.iterrows():
         try:
-            product_desc = row.get("Product Desc", "No Description Available")
-            price = row.get("Discount Price", "Unknown Price")
-            link = row.get("Product Url", "No URL Available")
-
-            # בניית ההודעה
-            message = f"📦 {product_desc}\n💰 {price}\n🔗 {link}"
-            bot.send_message(GROUP_ID, message)
-            print(f"✅ הודעה נשלחה: {product_desc}")
+            message = create_ad_message(row)
+            bot.send_message(GROUP_ID, message, parse_mode='Markdown')
+            print(f"✅ נשלחה מודעה: {row['Product Desc']}")
+            time.sleep(2)  # השהייה בין שליחת הודעות
         except Exception as e:
-            print(f"❌ שגיאה בשליחת הודעה: {e}")
+            print(f"❌ שגיאה בשליחת המודעה: {e}")
 
-# תזמון שליחה אוטומטית
+# --- הפעלת לו"ז ---
 def schedule_ads():
-    schedule.every().hour.do(send_ad)  # דוגמה: שליחת מודעה כל שעה
-    while True:
-        schedule.run_pending()
-        time.sleep(1)
+    schedule.every().day.at("10:00").do(send_ad)
+    print("✅ לוח זמנים להפצת מודעות הוגדר בהצלחה.")
 
-# שרת Flask לשמירה על פעילות הבוט
-app = Flask(__name__)
+# --- Flask ל-Render ---
+app = Flask('')
 
 @app.route('/')
 def home():
-    return "Bot is alive!"
+    return "Bot is running!"
 
-def run_flask():
-    app.run(host='0.0.0.0', port=int(os.getenv("PORT", 8080)))
+def keep_alive():
+    app.run(host='0.0.0.0', port=8080)
 
-# הרצת הבוט
+# --- הפעלת הבוט ---
 if __name__ == "__main__":
-    print("✅ הבוט מוכן ומתחיל לפעול.")
-    Thread(target=run_flask).start()  # הרצת Flask ברקע
-    schedule_ads()  # הפעלת התזמון
+    keep_alive()
+    schedule_ads()
+    while True:
+        schedule.run_pending()
+        time.sleep(1)
