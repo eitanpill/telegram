@@ -1,0 +1,114 @@
+2025-01-21 13:41:01,132 - INFO - נוצרה היסטוריה חדשה
+2025-01-21 13:41:01,133 - INFO - נטענו 172 מוצרים מהקובץ
+2025-01-21 13:41:01,133 - INFO - הבוט הופעל בהצלחה!
+2025-01-21 14:00:00,654 - ERROR - שגיאה בשליחת מוצר: 'Product Url'
+2025-01-21 14:10:10,337 - ERROR - Infinity polling: polling exited
+2025-01-21 14:10:10,339 - ERROR - Break infinity polling
+2025-01-21 14:10:12,693 - INFO - נוצרה היסטוריה חדשה
+2025-01-21 14:10:12,693 - INFO - נטענו 172 מוצרים מהקובץ
+2025-01-21 14:10:12,693 - INFO - הבוט הופעל בהצלחה!
+2025-01-21 14:10:25,041 - ERROR - Infinity polling: polling exited
+2025-01-21 14:10:25,042 - ERROR - Break infinity polling
+2025-01-21 14:11:34,929 - INFO - נוצרה היסטוריה חדשה
+2025-01-21 14:11:34,931 - INFO - נטענו 172 מוצרים מהקובץ
+2025-01-21 14:11:34,931 - INFO - ישנם 172 מוצרים זמינים לשליחה.
+2025-01-21 14:11:34,931 - INFO - מוצר נבחר לשליחה: Black Purple Rubber Basketball Ball Official Size 7 Free Needle Net Pump Outdoor Durable Basket Ball
+2025-01-21 14:11:35,218 - WARNING - ניסיון 1 נכשל: A request to the Telegram API was unsuccessful. Error code: 400. Description: Bad Request: chat not found
+2025-01-21 14:11:40,328 - WARNING - ניסיון 2 נכשל: A request to the Telegram API was unsuccessful. Error code: 400. Description: Bad Request: chat not found
+2025-01-21 14:11:45,430 - ERROR - כשל בשליחה לאחר 3 ניסיונות: A request to the Telegram API was unsuccessful. Error code: 400. Description: Bad Request: chat not found
+2025-01-21 14:11:45,431 - INFO - הבוט הופעל בהצלחה!
+2025-01-21 14:18:34,305 - ERROR - Infinity polling: polling exited
+2025-01-21 14:18:34,308 - ERROR - Break infinity polling
+2025-01-21 14:18:36,953 - INFO - נוצרה היסטוריה חדשה
+2025-01-21 14:18:36,953 - INFO - נטענו 172 מוצרים מהקובץ
+2025-01-21 14:18:36,953 - INFO - ישנם 172 מוצרים זמינים לשליחה.
+2025-01-21 14:18:36,953 - INFO - מוצר נבחר לשליחה: 
+2025-01-21 14:18:37,225 - WARNING - ניסיון 1 נכשל: A request to the Telegram API was unsuccessful. Error code: 400. Description: Bad Request: chat not found
+2025-01-21 14:18:42,333 - WARNING - ניסיון 2 נכשל: A request to the Telegram API was unsuccessful. Error code: 400. Description: Bad Request: chat not found
+2025-01-21 14:18:47,472 - ERROR - כשל בשליחה לאחר 3 ניסיונות: A request to the Telegram API was unsuccessful. Error code: 400. Description: Bad Request: chat not found
+2025-01-21 14:18:47,473 - INFO - הבוט הופעל בהצלחה!
+2025-01-21 14:19:43,431 - ERROR - Infinity polling: polling exited
+2025-01-21 14:19:43,433 - ERROR - Break infinity polling
+2025-01-21 15:19:37,718 - INFO - נוצרה היסטוריה חדשה
+2025-01-21 15:19:37,719 - INFO - נטענו 172 מוצרים מהקובץ
+2025-01-21 15:19:38,004 - INFO - ההיסטוריה נשמרה בהצלחה
+2025-01-21 15:19:38,004 - INFO - נשלח בהצלחה: DEWALT DCF860 Impact Driver 20V MAX Rechargeable Multifunctional Brushless Impact Electric Drill Power Tool DCF860N
+2025-01-21 15:19:38,004 - INFO - הבוט הופעל בהצלחה!
+2025-01-21 15:23:07,021 - ERROR - Infinity polling: polling exited
+2025-01-21 15:23:07,023 - ERROR - Break infinity polling
+2025-01-21 15:42:17,133 - INFO - נטענו 1 מוצרים מההיסטוריה
+2025-01-21 15:42:17,135 - INFO - נטענו 172 מוצרים מהקובץ
+2025-01-21 15:42:17,475 - INFO - ההיסטוריה נשמרה בהצלחה
+2025-01-21 15:42:17,475 - INFO - נשלח בהצלחה: KOOZER XM490 PRO disc card brake MTB mountain bike hub 4 bearing bicycle hubs 32 Holes support 8/9/10/11 speed rear or front hub
+2025-01-21 15:42:17,475 - INFO - הבוט הופעל בהצלחה!
+2025-01-21 15:49:06,843 - ERROR - Infinity polling: polling exited
+2025-01-21 15:49:06,845 - ERROR - Break infinity polling
+2025-01-21 15:49:09,942 - INFO - נטענו 2 מוצרים מההיסטוריה
+2025-01-21 15:49:09,942 - INFO - נטענו 172 מוצרים מהקובץ
+2025-01-21 15:49:10,291 - INFO - ההיסטוריה נשמרה בהצלחה
+2025-01-21 15:49:10,292 - INFO - נשלח בהצלחה: SHIMANO DEORE XT M8100 1X12 Speed Groupset Rear Derailleur SGS Right Shifter Lever SUNSHINE HG Type Cassette CN-M6100 Bike Parts
+2025-01-21 15:49:10,293 - INFO - הבוט הופעל בהצלחה!
+2025-01-21 15:49:41,923 - ERROR - Infinity polling: polling exited
+2025-01-21 15:49:41,925 - ERROR - Break infinity polling
+2025-01-21 15:53:37,775 - INFO - נטענו 3 מוצרים מההיסטוריה
+2025-01-21 15:53:37,777 - INFO - נטענו 172 מוצרים מהקובץ
+2025-01-21 15:53:37,777 - ERROR - שגיאה בהפעלת הבוט: name 'schedule' is not defined
+2025-01-21 15:55:34,552 - INFO - נטענו 3 מוצרים מההיסטוריה
+2025-01-21 15:55:34,553 - INFO - נטענו 172 מוצרים מהקובץ
+2025-01-21 15:55:34,553 - ERROR - שגיאה בהפעלת הבוט: name 'threading' is not defined
+2025-01-21 15:57:13,444 - INFO - נטענו 3 מוצרים מההיסטוריה
+2025-01-21 15:57:13,444 - INFO - נטענו 172 מוצרים מהקובץ
+2025-01-21 15:57:13,445 - INFO - הבוט הופעל בהצלחה!
+2025-01-21 16:00:00,356 - INFO - ההיסטוריה נשמרה בהצלחה
+2025-01-21 16:00:00,357 - INFO - נשלח בהצלחה: Propalm F1980EP2 Mountain Bike Handle Grips Rubber Cycling Handlebar Grips Anti-Skid Single Lock Handlbar Covers
+2025-01-21 16:06:55,652 - ERROR - Infinity polling: polling exited
+2025-01-21 16:06:55,654 - ERROR - Break infinity polling
+2025-01-21 16:07:31,816 - INFO - נטענו 4 מוצרים מההיסטוריה
+2025-01-21 16:07:31,817 - INFO - נטענו 172 מוצרים מהקובץ
+2025-01-21 16:07:31,818 - INFO - הבוט הופעל בהצלחה!
+2025-01-21 16:13:14,139 - ERROR - Infinity polling: polling exited
+2025-01-21 16:13:14,141 - ERROR - Break infinity polling
+2025-01-21 16:13:17,220 - INFO - נטענו 4 מוצרים מההיסטוריה
+2025-01-21 16:13:17,221 - INFO - נטענו 172 מוצרים מהקובץ
+2025-01-21 16:13:17,558 - INFO - ההיסטוריה נשמרה בהצלחה
+2025-01-21 16:13:17,558 - INFO - נשלח בהצלחה: 
+2025-01-21 16:13:17,559 - INFO - הבוט הופעל בהצלחה!
+2025-01-21 16:17:09,682 - ERROR - Infinity polling: polling exited
+2025-01-21 16:17:09,684 - ERROR - Break infinity polling
+2025-01-21 16:17:12,484 - INFO - נטענו 5 מוצרים מההיסטוריה
+2025-01-21 16:17:12,485 - INFO - נטענו 133 מוצרים מהקובץ
+2025-01-21 16:17:13,275 - INFO - ההיסטוריה נשמרה בהצלחה
+2025-01-21 16:17:13,275 - INFO - נשלח בהצלחה: Shimano XT M8100 Shifter SLX M7100 12S MTB Derailleur Deore 11S M5100 M4100 Mountain Bike 10S Finger Dial 11 Speed Bicycle Parts
+2025-01-21 16:17:13,276 - INFO - הבוט הופעל בהצלחה!
+2025-01-21 16:21:15,369 - ERROR - Infinity polling: polling exited
+2025-01-21 16:21:15,371 - ERROR - Break infinity polling
+2025-01-22 18:40:53,784 - INFO - נטענו 6 מוצרים מההיסטוריה
+2025-01-22 18:40:53,786 - INFO - נטענו 133 מוצרים מהקובץ
+2025-01-22 18:41:57,671 - INFO - נטענו 6 מוצרים מההיסטוריה
+2025-01-22 18:41:57,672 - INFO - נטענו 133 מוצרים מהקובץ
+2025-01-22 18:41:57,672 - ERROR - שגיאה בהבאת מידע על המוצר: name 'requests' is not defined
+2025-01-22 18:41:58,561 - INFO - ההיסטוריה נשמרה בהצלחה
+2025-01-22 18:42:48,988 - ERROR - Infinity polling: polling exited
+2025-01-22 18:42:48,990 - ERROR - Break infinity polling
+2025-01-22 18:42:58,404 - INFO - נטענו 7 מוצרים מההיסטוריה
+2025-01-22 18:42:58,405 - INFO - נטענו 133 מוצרים מהקובץ
+2025-01-22 18:43:02,207 - ERROR - שגיאה בהבאת מידע על המוצר: name 'BeautifulSoup' is not defined
+2025-01-22 18:43:02,542 - INFO - ההיסטוריה נשמרה בהצלחה
+2025-01-22 18:43:46,708 - ERROR - Infinity polling: polling exited
+2025-01-22 18:43:46,709 - ERROR - Break infinity polling
+2025-01-22 18:43:57,652 - INFO - נטענו 8 מוצרים מההיסטוריה
+2025-01-22 18:43:57,653 - INFO - נטענו 133 מוצרים מהקובץ
+2025-01-22 18:43:59,584 - ERROR - שגיאה בהבאת מידע על המוצר: 'NoneType' object has no attribute 'get_text'
+2025-01-22 18:43:59,915 - INFO - ההיסטוריה נשמרה בהצלחה
+2025-01-22 18:46:14,715 - ERROR - Infinity polling: polling exited
+2025-01-22 18:46:14,717 - ERROR - Break infinity polling
+2025-01-22 18:46:16,829 - INFO - נטענו 133 מוצרים מהקובץ
+2025-01-22 18:46:16,829 - INFO - נטענו 9 מוצרים מההיסטוריה
+2025-01-22 18:46:18,547 - INFO - ההיסטוריה נשמרה בהצלחה
+2025-01-22 18:46:18,548 - INFO - נשלח בהצלחה: MAKITA DTD172Z Lithium battery brushless impact driver memory function 4 mode screwdriver
+2025-01-22 18:46:18,548 - ERROR - שגיאה בהפעלת הבוט: name 'threading' is not defined
+2025-01-22 18:48:03,020 - INFO - נטענו 133 מוצרים מהקובץ
+2025-01-22 18:48:03,020 - INFO - נטענו 10 מוצרים מההיסטוריה
+2025-01-22 18:48:05,021 - INFO - ההיסטוריה נשמרה בהצלחה
+2025-01-22 18:48:05,022 - INFO - נשלח בהצלחה: SHIMANO SLX  M7100 12 Speed CS-M7100 10-45T 10-51T Cassette MICRO SPLINE MTB Cassette Sprocket Flywheel Original Bike Parts
+2025-01-22 18:48:05,023 - ERROR - שגיאה בהפעלת הבוט: name 'threading' is not defined
