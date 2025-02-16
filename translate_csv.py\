@@ -1,0 +1,33 @@
+import pandas as pd
+from deep_translator import GoogleTranslator
+
+# נתיב הקובץ המקורי
+file_path = "/Users/eitanpelles/Desktop/telegram-bot/ads.csv"
+
+# קריאת הקובץ
+df = pd.read_csv(file_path)
+
+# בדיקה אם עמודת "Product Desc" קיימת
+if "Product Desc" in df.columns:
+    # פונקציה לתרגום טקסט
+    def translate_text(text):
+        try:
+            translated = GoogleTranslator(source='auto', target='iw').translate(text)
+            print(f"🔹 תורגם: {text} -> {translated}")  # הדפסת התרגום לכל מוצר
+            return translated
+        except Exception as e:
+            print(f"שגיאה בתרגום: {e}")
+            return text  # במקרה של שגיאה, שומר על הטקסט המקורי
+
+    # תרגום העמודה "Product Desc" בלבד
+    df["Product Desc"] = df["Product Desc"].apply(lambda x: translate_text(x) if pd.notna(x) else x)
+
+    # נתיב לקובץ החדש
+    translated_file_path = "/Users/eitanpelles/Desktop/telegram-bot/ads_translated.csv"
+
+    # שמירת הקובץ החדש
+    df.to_csv(translated_file_path, index=False)
+    print(f"✅ התרגום הסתיים! קובץ נשמר ב: {translated_file_path}")
+
+else:
+    print("❌ עמודת 'Product Desc' לא נמצאה בקובץ!")
