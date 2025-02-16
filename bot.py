@@ -1,103 +1,159 @@
-import time
-import random
-import logging
-from datetime import datetime, timedelta
+import os
 import pandas as pd
-import telebot
+import time
+from telebot import TeleBot
+from keep_alive import keep_alive
+from datetime import datetime, time as dt_time
 import pytz
 
-# טוקן של הבוט
-BOT_TOKEN = "8130275609:AAFTV972VTD0Ym1xjSoxuBM99d8z4ipdSLo"
+# משתנים גלובליים
+LOCAL_TIMEZONE = pytz.timezone("Asia/Jerusalem")  # אזור הזמן לישראל
+TOKEN = os.getenv("TELEGRAM_TOKEN")  # הטוקן נלקח מתוך משתני הסביבה
+GROUP_ID = os.getenv("TELEGRAM_GROUP_ID")  # ה-Group ID נלקח מתוך משתני הסביבה
+CSV_FILE = 'ads.csv'  # קובץ המודעות
 
-# מזהה הקבוצה
-GROUP_ID = "-1002423906987"
+# בדיקה אם הטוקן וה-Group ID מוגדרים
+if not TOKEN:
+    raise ValueError("⚠️ TOKEN חסר! יש להגדיר את משתנה הסביבה TELEGRAM_TOKEN.")
+else:
+    print(f"✅ TOKEN נטען בהצלחה: {TOKEN[:10]}...")
 
-# הגדרת לוגים
-logging.basicConfig(level=logging.INFO, format="%(asctime)s - %(message)s")
+if not GROUP_ID:
+    raise ValueError("⚠️ GROUP ID חסר! יש להגדיר את משתנה הסביבה TELEGRAM_GROUP_ID.")
+else:
+    print(f"✅ GROUP ID נטען בהצלחה: {GROUP_ID}")
 
-# יצירת אובייקט בוט
-bot = telebot.TeleBot(BOT_TOKEN)
+# אתחול הבוט
+bot = TeleBot(TOKEN)
 
-# שעון ישראל
-ISRAEL_TZ = pytz.timezone("Asia/Jerusalem")
-
-# נתיבים לקבצים
-ADS_FILE = "ads.csv"  # קובץ המודעות
-SENT_ADS_FILE = "sent-ads.txt"  # קובץ למודעות שכבר נשלחו
-
-def load_products():
-    """טוען את המודעות מקובץ ads.csv"""
-    return pd.read_csv(ADS_FILE)
-
-def load_sent_products():
-    """טוען את המודעות שכבר נשלחו"""
+# טעינת מודעות
+def load_ads():
+    """
+    טוען את רשימת המודעות מקובץ CSV
+    """
     try:
-        with open(SENT_ADS_FILE, "r") as f:
-            return f.read().splitlines()
-    except FileNotFoundError:
-        return []
-
-def save_sent_product(product_id):
-    """שומר את המודעה שנשלחה"""
-    with open(SENT_ADS_FILE, "a") as f:
-        f.write(f"{product_id}\n")
-
-def pick_random_product(products):
-    """בחירת מוצר רנדומלי שלא נשלח"""
-    sent_products = load_sent_products()
-    available_products = products[~products["ID"].astype(str).isin(sent_products)]
-    if available_products.empty:
-        logging.info("🎉 כל המודעות נשלחו! מאפסים רשימה.")
-        open(SENT_ADS_FILE, "w").close()  # איפוס הקובץ
-        available_products = products
-    return available_products.sample().iloc[0]
-
-def format_message(product):
-    """מכין את הודעת המוצר"""
-    message = (
-        f"✨ *{product['Product Desc']}*\n\n"
-        f"💵 מחיר מקורי: {product['Origin Price']}\n"
-        f"🏷️ מחיר לאחר הנחה: {product['Discount Price']} ({product['Discount']} הנחה!)\n\n"
-        f"🌟 {product['Positive Feedback']} פידבק חיובי\n"
-        f"📦 נמכרו: {product['Sales180Day']} ב-180 הימים האחרונים\n\n"
-        f"[🔗 למידע נוסף ולרכישה]({product['Product Url']})"
-    )
-    return message
-
-def send_ad():
-    """שולח מודעה בקבוצה"""
-    now = datetime.now(ISRAEL_TZ)
-    if not (8 <= now.hour < 23):
-        logging.info("⏳ השעה מחוץ לטווח, ממתינים...")
-        return
-
-    logging.info(f"⌛️ השעה {now.strftime('%H:%M')} - שולחים הודעה...")
-    products = load_products()
-    product = pick_random_product(products)
-    message = format_message(product)
-
-    try:
-        if pd.notna(product["Image Url"]):  # אם יש תמונה
-            bot.send_photo(GROUP_ID, product["Image Url"], caption=message, parse_mode="Markdown")
-        elif pd.notna(product["Video Url"]):  # אם יש וידאו
-            bot.send_video(GROUP_ID, product["Video Url"], caption=message, parse_mode="Markdown")
-        else:  # הודעה טקסטואלית בלבד
-            bot.send_message(GROUP_ID, message, parse_mode="Markdown")
-        save_sent_product(product["ID"])
+        data = pd.read_csv(CSV_FILE)
+        if 'Sent' not in data.columns:
+            data['Sent'] = 'no'  # יצירת עמודת מעקב אם לא קיימת
+        return data
     except Exception as e:
-        logging.error(f"⚠️ שגיאה בשליחת הודעה: {e}")
+        print(f"❌ שגיאה בטעינת המודעות: {e}")
+        return pd.DataFrame()
 
-def run_scheduler():
-    """מבצע תזמון לשליחת ההודעות בכל שעה עגולה"""
-    send_ad()  # שליחת הודעה מיד בהפעלה
+# שמירת המודעות לאחר עדכון הסטטוס
+def save_ads(data):
+    """
+    שומר את קובץ המודעות לאחר עדכון הסטטוס
+    """
+    try:
+        data.to_csv(CSV_FILE, index=False)
+        print("✅ קובץ המודעות עודכן בהצלחה!")
+    except Exception as e:
+        print(f"❌ שגיאה בעדכון קובץ המודעות: {e}")
+
+# פונקציה ליצירת תוכן ההודעה
+def create_ad_message(row):
+    """
+    יוצר טקסט מודעה משורה בקובץ
+    """
+    product_desc = row['Product Desc']
+    origin_price = row['Origin Price']
+    discount_price = row['Discount Price']
+    discount = row['Discount']
+    product_url = row['Product Url']
+    feedback = row.get('Positive Feedback', 'אין מידע')
+
+    return (
+        f"🎉 **מבצע מטורף!** 🎉\n\n"
+        f"📦 **{product_desc}**\n"
+        f"💸 מחיר מקורי: {origin_price}\n"
+        f"💥 מחיר לאחר הנחה: {discount_price} ({discount} הנחה!)\n"
+        f"👍 משוב חיובי: {feedback}\n"
+        f"\n🔗 [לחץ כאן למוצר]({product_url})\n\n"
+        f"מהרו לפני שייגמר! 🚀"
+    )
+
+# פונקציה לבחירת מוצר שלא נשלח
+def pick_random_product(data):
+    """
+    בוחר מוצר רנדומלי שלא נשלח עדיין
+    """
+    available_products = data[data["Sent"] != "yes"]
+    if available_products.empty:
+        print("🎉 כל המודעות כבר נשלחו היום! מאתחל מחדש...")
+        data["Sent"] = "no"  # מאפס את המודעות שנשלחו
+        save_ads(data)
+        available_products = data
+
+    return available_products.sample(1).iloc[0]  # בחירת שורה אחת רנדומלית
+
+# פונקציה לשליחת מודעה
+def send_ad():
+    """
+    שולח מודעה שלא נשלחה בעבר
+    """
+    global ads
+    try:
+        product = pick_random_product(ads)
+        message = create_ad_message(product)
+        image_url = product.get('Image Url')
+        video_url = product.get('Video Url')
+        index = ads[ads["Product Desc"] == product["Product Desc"]].index[0]
+
+        if pd.notna(video_url) and str(video_url).strip():
+            bot.send_video(chat_id=GROUP_ID, video=video_url, caption=message, parse_mode="Markdown")
+        elif pd.notna(image_url) and str(image_url).strip():
+            bot.send_photo(chat_id=GROUP_ID, photo=image_url, caption=message, parse_mode="Markdown")
+        else:
+            bot.send_message(chat_id=GROUP_ID, text=message, parse_mode="Markdown")
+
+        print(f"✅ מודעה נשלחה: {product['Product Desc']}")
+
+        # סימון המוצר שנשלח
+        ads.at[index, "Sent"] = "yes"
+        save_ads(ads)
+
+    except Exception as e:
+        print(f"❌ שגיאה בשליחת המודעה: {e}")
+
+# פונקציה לבדיקה אם הזמן הנוכחי מתאים לפרסום
+def is_within_schedule():
+    """
+    בודק אם הזמן הנוכחי בטווח השעות
+    """
+    now = datetime.now(LOCAL_TIMEZONE).time()
+    start_time = dt_time(8, 0)
+    end_time = dt_time(22, 0)
+    return start_time <= now <= end_time
+
+# תזמון שליחת המודעות
+def schedule_ads():
+    """
+    מתזמן שליחת מודעות כל שעה עגולה
+    """
     while True:
-        now = datetime.now(ISRAEL_TZ)
-        next_hour = (now + timedelta(hours=1)).replace(minute=0, second=0, microsecond=0)
-        sleep_time = (next_hour - now).total_seconds()
-        logging.info(f"🕒 ממתינים לשעה העגולה הבאה ({next_hour.strftime('%H:%M')})...")
-        time.sleep(sleep_time)
-        send_ad()
+        if is_within_schedule():
+            send_ad()
+            now = datetime.now(LOCAL_TIMEZONE)
+            next_hour = (now.replace(minute=0, second=0, microsecond=0) + pd.Timedelta(hours=1)).time()
+            print(f"⏳ ממתין לשעה הבאה: {next_hour}")
+            time.sleep(3600 - now.minute * 60 - now.second)
+        else:
+            print("⏳ הזמן מחוץ לטווח הפעילות. ממתין...")
+            time.sleep(60)
 
+# הפעלת הבוט ושמירה על פעילות
 if __name__ == "__main__":
-    logging.info("🚀 הבוט התחיל לפעול!")
-    run_scheduler()
+    print("🚀 הבוט התחיל לפעול!")
+    
+    # טוען מודעות מהקובץ
+    ads = load_ads()
+    
+    # שולח הודעה מיד בהפעלה
+    send_ad()
+
+    # מפעיל את Flask לשמירה על הבוט פעיל
+    keep_alive()
+    
+    # מתזמן את הפרסומים
+    schedule_ads()
