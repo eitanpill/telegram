@@ -1,153 +1,121 @@
 import os
 import pandas as pd
 import time
+import random
 from telebot import TeleBot
 from datetime import datetime, time as dt_time
 import pytz
 
-# ✅ הגדרת אזור זמן
-LOCAL_TIMEZONE = pytz.timezone("Asia/Jerusalem")  # אזור הזמן לישראל
+# 🌍 משתנים גלובליים
+LOCAL_TIMEZONE = pytz.timezone("Asia/Jerusalem")  # אזור הזמן ישראל
+TOKEN = os.getenv("TELEGRAM_TOKEN")  # טעינת הטוקן
+GROUP_ID = os.getenv("TELEGRAM_GROUP_ID")  # טעינת ה-GROUP ID
 
-# ✅ טעינת משתנים מהסביבה
-TOKEN = os.getenv("TELEGRAM_TOKEN")
-GROUP_ID = os.getenv("TELEGRAM_GROUP_ID")
-
-# ✅ בדיקת משתני סביבה
+# ✅ בדיקה אם הטוקן וה-Group ID מוגדרים
 if not TOKEN:
-    raise ValueError("⚠️ TELEGRAM_TOKEN חסר! יש להגדיר את משתנה הסביבה.")
+    raise ValueError("⚠️ TELEGRAM_TOKEN חסר! יש להגדיר אותו.")
 else:
-    print(f"✅ TOKEN נטען בהצלחה: {TOKEN[:10]}...")
+    print(f"✅ TELEGRAM_TOKEN נטען בהצלחה.")
 
 if not GROUP_ID:
-    raise ValueError("⚠️ TELEGRAM_GROUP_ID חסר! יש להגדיר את משתנה הסביבה.")
+    raise ValueError("⚠️ TELEGRAM_GROUP_ID חסר! יש להגדיר אותו.")
 else:
-    print(f"✅ GROUP ID נטען בהצלחה: {GROUP_ID}")
+    print(f"✅ TELEGRAM_GROUP_ID נטען בהצלחה: {GROUP_ID}")
 
-# ✅ אתחול הבוט
+# 📌 אתחול הבוט
 bot = TeleBot(TOKEN)
 
-# ✅ טעינת מודעות מקובץ CSV
+# 📝 פונקציה לטעינת מודעות
 def load_ads(file_path='ads.csv'):
-    """
-    טוען את רשימת המודעות מקובץ CSV
-    """
     try:
         df = pd.read_csv(file_path)
-
-        # בדיקה אם עמודת Sent קיימת
+        print(f"✅ נטענו {len(df)} מודעות בהצלחה!")
+        
+        # אם אין עמודת 'Sent' נוסיף אותה עם ערך ברירת מחדל "no"
         if 'Sent' not in df.columns:
-            print("⚠️ עמודת 'Sent' חסרה! מוסיף אותה עם ערך ברירת מחדל 'no'.")
             df['Sent'] = 'no'
             df.to_csv(file_path, index=False)
 
-        print(f"✅ נטענו {len(df)} מודעות בהצלחה!")
         return df
     except Exception as e:
-        print(f"❌ שגיאה בטעינת המודעות: {e}")
-        return pd.DataFrame()
-
-# ✅ יצירת הודעת מודעה
-def create_ad_message(product):
-    """
-    יוצר טקסט של מודעה ממידע המוצר
-    """
-    try:
-        return (
-            f"🎉 **מבצע מטורף!** 🎉\n\n"
-            f"📦 **{product['Product Desc']}**\n"
-            f"💸 מחיר מקורי: {product['Origin Price']}\n"
-            f"💥 מחיר לאחר הנחה: {product['Discount Price']} ({product['Discount']} הנחה!)\n"
-            f"👍 משוב חיובי: {product.get('Positive Feedback', 'אין מידע')}\n"
-            f"\n🔗 [לחץ כאן למוצר]({product['Product Url']})\n\n"
-            f"מהרו לפני שייגמר! 🚀"
-        )
-    except KeyError as e:
-        print(f"❌ שגיאה בהרכבת ההודעה: חסר מפתח {e}")
+        print(f"❌ שגיאה בטעינת קובץ המודעות: {e}")
         return None
 
-# ✅ שליחת מודעה רנדומלית
+# 📝 פונקציה לשליחת הודעה לטלגרם
 def send_ad():
-    """
-    שולח מודעה שלא נשלחה, מסמן אותה כ"נשלחה" ומעדכן בקובץ
-    """
-    global ads_df
-    print("🔍 send_ad() הופעלה! בודק אם יש מודעות זמינות...")
-
-    available_products = ads_df[ads_df["Sent"] == "no"]
-
-    if available_products.empty:
-        print("🎉 כל המודעות כבר נשלחו היום! אין מוצרים לשליחה.")
+    df = load_ads()  # טוען את המודעות מהקובץ
+    if df is None or df.empty:
+        print("⚠️ אין מודעות זמינות לשליחה.")
         return
-
-    # ✅ בחירת מוצר רנדומלי
-    product = available_products.sample(1).iloc[0]
-    print(f"📢 נבחר מוצר: {product['Product Desc']}")
-
-    message = create_ad_message(product)
-    if not message:
+    
+    available_ads = df[df['Sent'] == 'no']  # בודק מודעות שלא נשלחו
+    
+    if available_ads.empty:
+        print("🎉 כל המודעות כבר נשלחו!")
         return
+    
+    ad = available_ads.sample(n=1).iloc[0]  # בוחר מודעה רנדומלית
 
-    image_url = product.get('Image Url', None)
-    video_url = product.get('Video Url', None)
+    # בניית ההודעה
+    product_desc = ad.get("Product Desc", "אין תיאור")
+    origin_price = ad.get("Origin Price", "לא ידוע")
+    discount_price = ad.get("Discount Price", "לא ידוע")
+    discount = ad.get("Discount", "0%")
+    product_url = ad.get("Product Url", "אין קישור")
+    image_url = ad.get("Image Url", None)
+    video_url = ad.get("Video Url", None)
+    feedback = ad.get("Positive Feedback", "אין מידע")
+
+    message = (
+        f"🎉 **מבצע מטורף!** 🎉\n\n"
+        f"📦 **{product_desc}**\n"
+        f"💸 מחיר מקורי: {origin_price}\n"
+        f"💥 מחיר לאחר הנחה: {discount_price} ({discount} הנחה!)\n"
+        f"👍 משוב חיובי: {feedback}\n"
+        f"\n🔗 [לחץ כאן למוצר]({product_url})\n\n"
+        f"מהרו לפני שייגמר! 🚀"
+    )
 
     try:
         if pd.notna(video_url) and isinstance(video_url, str) and video_url.strip():
-            print(f"🎥 שולח וידאו: {video_url}")
             bot.send_video(chat_id=GROUP_ID, video=video_url, caption=message, parse_mode="Markdown")
+            print("📽️ נשלחה הודעה עם וידאו.")
         elif pd.notna(image_url) and isinstance(image_url, str) and image_url.strip():
-            print(f"🖼️ שולח תמונה: {image_url}")
             bot.send_photo(chat_id=GROUP_ID, photo=image_url, caption=message, parse_mode="Markdown")
+            print("🖼️ נשלחה הודעה עם תמונה.")
         else:
-            print(f"📄 שולח הודעת טקסט בלבד")
             bot.send_message(chat_id=GROUP_ID, text=message, parse_mode="Markdown")
+            print("📄 נשלחה הודעה ללא תמונה/וידאו.")
 
-        print(f"✅ מודעה פורסמה: {product['Product Desc']}")
-
-        # ✅ סימון המוצר כ"נשלח"
-        ads_df.loc[ads_df.index == product.name, 'Sent'] = 'yes'
-        ads_df.to_csv("ads.csv", index=False)
-        
+        # עדכון העמודה "Sent" ל- "yes" כדי למנוע שליחה חוזרת
+        df.loc[df["Product Desc"] == product_desc, "Sent"] = "yes"
+        df.to_csv('ads.csv', index=False)  # שמירת העדכון בקובץ
+        print(f"✅ המוצר '{product_desc}' סומן כנשלח.")
     except Exception as e:
         print(f"❌ שגיאה בשליחת המודעה: {e}")
 
-# ✅ בדיקה אם הזמן הנוכחי בטווח השעות
+# 🕒 פונקציה לבדוק אם הזמן מתאים לשליחת הודעה
 def is_within_schedule():
-    """
-    בודק אם השעה בטווח 8:00 - 22:00
-    """
     now = datetime.now(LOCAL_TIMEZONE).time()
-    return dt_time(8, 0) <= now <= dt_time(22, 0)
+    return dt_time(8, 0) <= now <= dt_time(22, 0)  # עובד רק בין 08:00 - 22:00
 
-# ✅ תזמון שליחת המודעות
+# ⏳ תזמון שליחת מודעות כל שעה
 def schedule_ads():
-    """
-    מתזמן שליחת מודעות כל שעה עגולה
-    """
     while True:
-        now = datetime.now(LOCAL_TIMEZONE)
-        current_time = now.strftime('%H:%M:%S')
-
-        print(f"⏳ [{current_time}] בודק אם הזמן מתאים לשליחת הודעה...")
-
         if is_within_schedule():
-            print(f"⌛️ [{current_time}] בתוך שעות הפעילות - שולח הודעה...")
+            print(f"⌛️ השעה {datetime.now(LOCAL_TIMEZONE).strftime('%H:%M')} - שולחים הודעה...")
             send_ad()
-
-            # ✅ מחשב את הזמן לשעה הבאה
-            next_hour = (now.replace(minute=0, second=0, microsecond=0) + pd.Timedelta(hours=1)).time()
-            print(f"⏳ ממתין לשעה הבאה: {next_hour}")
-            time.sleep(3600 - now.minute * 60 - now.second)
+            time.sleep(3600)  # ממתין שעה לפני שליחה נוספת
         else:
-            print(f"⏳ [{current_time}] מחוץ לשעות הפעילות, ממתין...")
-            time.sleep(60)
+            print("🕒 מחוץ לשעות הפעילות. ממתין 10 דקות...")
+            time.sleep(600)  # ממתין 10 דקות לפני בדיקה חוזרת
 
-# ✅ הפעלת הבוט
+# 🚀 הפעלת הבוט
 if __name__ == "__main__":
-    ads_df = load_ads('ads.csv')
-
-    # ✅ שולח הודעה ראשונה מיד עם ההפעלה
-    print("🚀 הבוט התחיל לפעול!")
+    print("✅ הבוט מוכן ומתחיל לפעול.")
+    
+    # שולח הודעה ראשונה עם ההפעלה
     send_ad()
-
-    # ✅ תזמון השליחה
+    
+    # מפעיל את לולאת התזמון
     schedule_ads()
