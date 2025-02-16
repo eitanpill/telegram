@@ -1,127 +1,77 @@
 import os
+import pandas as pd
 import random
 import time
-import pandas as pd
-import telebot
-import schedule
+from telebot import TeleBot
 
-# 🛠️ טעינת משתני הסביבה
+# 📌 טעינת משתני סביבה
 TOKEN = os.getenv("TELEGRAM_TOKEN")
 GROUP_ID = os.getenv("TELEGRAM_GROUP_ID")
 
-# 🛠️ בדיקה שהכל תקין
-if not TOKEN:
-    raise ValueError("⚠️ TELEGRAM_TOKEN חסר! יש להגדיר את משתנה הסביבה TELEGRAM_TOKEN.")
-if not GROUP_ID:
-    raise ValueError("⚠️ TELEGRAM_GROUP_ID חסר! יש להגדיר את משתנה הסביבה TELEGRAM_GROUP_ID.")
+# 📌 אתחול הבוט
+bot = TeleBot(TOKEN)
 
-# 📡 יצירת חיבור לבוט
-bot = telebot.TeleBot(TOKEN)
+# 📌 קריאת הקובץ ads.csv
+ads_file = "ads.csv"
 
-# 🔍 היסטוריית מוצרים שנשלחו כדי למנוע כפילויות
-history_ads = []
-
-# 🎯 פונקציה לטעינת המודעות
-def load_ads(file_path="ads.csv"):
-    global ads
+def load_ads():
     try:
-        data = pd.read_csv(file_path)
-        data.columns = data.columns.str.strip()  # הסרת רווחים מיותרים
-
-        print(f"✅ עמודות בקובץ: {data.columns.tolist()}")  # בדיקה
-
-        if data.empty:
-            print("⚠️ הקובץ ריק! אין מודעות לשלוח.")
-            return []
-
-        ads = data.to_dict("records")  # המרת הנתונים לרשימה
-        print(f"✅ נטענו {len(ads)} מודעות בהצלחה!")
-        return ads
+        df = pd.read_csv(ads_file)
+        if "Sent" not in df.columns:
+            df["Sent"] = "No"  # יצירת עמודה אם לא קיימת
+        return df
     except Exception as e:
-        print(f"❌ שגיאה בטעינת המודעות: {e}")
-        return []
+        print(f"❌ שגיאה בטעינת קובץ המודעות: {e}")
+        return pd.DataFrame()
 
-# 📝 יצירת הודעת מודעה מעוצבת
-def create_ad_message(row):
-    print("🔍 טוען מודעה:", row)  # בדיקה
-
-    product_desc = row.get("Product Desc", "🛍️ מוצר לא ידוע").strip()
-    origin_price = row.get("Origin Price", "לא ידוע").strip()
-    discount_price = row.get("Discount Price", "לא ידוע").strip()
-    discount = row.get("Discount", "0%").strip()
-    sales = row.get("Sales180Day", "לא ידוע").strip()
-    feedback = row.get("Positive Feedback", "אין מידע").strip()
-    product_url = row.get("Product Url", "").strip()
-    image_url = row.get("Image Url", "").strip()
-    video_url = row.get("Video Url", "").strip()
-
-    if not product_desc or not product_url:
-        print("⚠️ מוצר חסר נתונים - לא נשלח.")
-        return None
-
-    message = (
-        f"🎉 **מבצע מיוחד!** 🎉\n\n"
-        f"📦 **{product_desc}**\n"
-        f"💸 מחיר מקורי: ~~{origin_price}~~\n"
-        f"🔥 מחיר מבצע: **{discount_price}** ({discount} הנחה!)\n"
-        f"📊 מכירות ב-180 ימים אחרונים: {sales}\n"
-        f"👍 משוב חיובי: {feedback}\n\n"
-        f"🔗 [🔗 קישור למוצר]({product_url})\n\n"
-        f"⚡ **מהרו לפני שייגמר!** ⚡"
-    )
-
-    return message, image_url, video_url
-
-# 🚀 שליחת מודעה רנדומלית
+# 📌 שליחת מודעה רנדומלית שלא נשלחה
 def send_ad():
-    global history_ads
-
-    if not ads:
-        print("⚠️ אין מודעות זמינות לשליחה.")
+    global ads_df
+    available_ads = ads_df[ads_df["Sent"] == "No"]  # סינון מודעות שלא נשלחו
+    if available_ads.empty:
+        print("⚠️ אין מודעות חדשות לשליחה.")
         return
 
-    available_ads = [ad for ad in ads if ad["Product Desc"] not in history_ads]
+    ad = available_ads.sample(1).iloc[0]  # בחירת מודעה רנדומלית
+    
+    # 🔹 יצירת ההודעה
+    message = f"""🎉 *מבצע מטורף!* 🎉
 
-    if not available_ads:
-        print("⚠️ כל המודעות כבר נשלחו בעבר. מרענן רשימה...")
-        history_ads.clear()  # איפוס היסטוריה
-        available_ads = ads
+📦 {ad.get("Product Desc", "אין תיאור")}
+💸 *מחיר מקורי:* {ad.get("Origin Price", "לא ידוע")}
+💥 *מחיר לאחר הנחה:* {ad.get("Discount Price", "לא ידוע")} ({ad.get("Discount", "0%")} הנחה!)
+👍 *משוב חיובי:* {ad.get("Positive Feedback", "אין מידע")}
 
-    ad = random.choice(available_ads)
-    result = create_ad_message(ad)
+🔗 [קישור למוצר]({ad.get("Product Url", "#")})
 
-    if not result:
-        return
-
-    message, image_url, video_url = result
-
+🚀 מהרו לפני שייגמר!
+"""
+    
+    # 🔹 שליחת ההודעה עם וידאו או תמונה
     try:
-        if video_url:
-            bot.send_video(GROUP_ID, video_url, caption=message, parse_mode="Markdown")
-        elif image_url:
-            bot.send_photo(GROUP_ID, image_url, caption=message, parse_mode="Markdown")
+        if pd.notna(ad["Video Url"]) and ad["Video Url"].startswith("http"):
+            bot.send_video(GROUP_ID, ad["Video Url"], caption=message, parse_mode="Markdown")
         else:
-            bot.send_message(GROUP_ID, message, parse_mode="Markdown")
+            bot.send_photo(GROUP_ID, ad["Image Url"], caption=message, parse_mode="Markdown")
+        
+        print(f"✅ נשלחה מודעה: {ad['Product Desc']}")
 
-        history_ads.append(ad["Product Desc"])  # הוספה להיסטוריה
-        print("✅ מודעה נשלחה בהצלחה!")
+        # 🔹 עדכון המודעה כ"נשלחה" ושמירת הקובץ
+        ads_df.loc[ads_df["Product Desc"] == ad["Product Desc"], "Sent"] = "Yes"
+        ads_df.to_csv(ads_file, index=False)
+    
     except Exception as e:
-        print(f"❌ שגיאה בשליחת ההודעה: {e}")
+        print(f"❌ שגיאה בשליחת המודעה: {e}")
 
-# 📅 תזמון שליחת המודעות כל שעה עגולה
-def schedule_ads():
-    schedule.every().hour.at(":00").do(send_ad)
-    print("✅ תזמון אוטומטי כל שעה עגולה נקבע בהצלחה!")
+# 📌 קריאת הנתונים והפעלת הבוט
+ads_df = load_ads()
 
-# 🚀 הפעלת הבוט
-if __name__ == "__main__":
-    print("✅ הבוט התחיל לפעול... בודק חיבורים!")
+print("✅ הבוט פעיל! שולח מודעה ראשונה...")
+send_ad()  # שליחת הודעה ראשונה מיד עם ההפעלה
 
-    ads = load_ads()  # טעינת מודעות
-    send_ad()  # שליחת מודעה ראשונה מיד עם ההפעלה
-    schedule_ads()  # קביעת לוח זמנים
-
-    # לולאה אינסופית לשמירה על ריצה
-    while True:
-        schedule.run_pending()
-        time.sleep(1)
+# 📌 תזמון שליחה כל שעה עגולה
+while True:
+    now = time.localtime()
+    minutes_to_next_hour = 60 - now.tm_min
+    time.sleep(minutes_to_next_hour * 60)  # חכה עד השעה העגולה
+    send_ad()
