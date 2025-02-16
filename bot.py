@@ -37,7 +37,7 @@ def load_ads(file_path="ads.csv"):
     try:
         data = pd.read_csv(file_path)
         data.columns = data.columns.str.strip()  # הסרת רווחים עודפים בעמודות
-        print(f"✅ עמודות שהתקבלו מהקובץ: {data.columns.tolist()}")  # בדיקה
+        print(f"✅ עמודות שהתקבלו מהקובץ: {data.columns.tolist()}")  # הדפסה של שמות העמודות
         
         ads = data.to_dict("records")  # המרה לרשימת מילונים
         print(f"✅ נטענו {len(ads)} מודעות בהצלחה!")
@@ -65,11 +65,11 @@ def create_ad_message(row):
     """
     יוצר טקסט מודעה משורה בקובץ
     """
-    product_desc = row["Product Desc"]
-    origin_price = row["Origin Price"]
-    discount_price = row["Discount Price"]
-    discount = row["Discount"]
-    product_url = row["Product Url"]
+    product_desc = row.get("Product Desc", "אין תיאור")
+    origin_price = row.get("Origin Price", "לא ידוע")
+    discount_price = row.get("Discount Price", "לא ידוע")
+    discount = row.get("Discount", "0%")
+    product_url = row.get("Product Url", "אין קישור")
     feedback = row.get("Positive Feedback", "אין מידע")
 
     return (
@@ -81,7 +81,6 @@ def create_ad_message(row):
         f"\n🔗 [לחץ כאן למוצר]({product_url})\n\n"
         f"מהרו לפני שייגמר! 🚀"
     )
-
 # פונקציה לשליחת מודעה
 def send_ad():
     """
