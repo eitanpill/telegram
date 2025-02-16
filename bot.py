@@ -25,6 +25,7 @@ def load_ads():
         df = pd.read_csv(CSV_FILE)
         if 'Sent' not in df.columns:
             df['Sent'] = "No"  # הוספת עמודה למעקב אם המודעה נשלחה
+        print(f"📜 קובץ נטען עם {len(df)} מודעות.")
         return df
     except Exception as e:
         print(f"❌ שגיאה בטעינת הקובץ: {e}")
@@ -34,6 +35,7 @@ def load_ads():
 def get_unsent_ad():
     df = load_ads()
     if df is None:
+        print("⚠️ לא ניתן לטעון את קובץ המודעות.")
         return None, None
 
     available_ads = df[df['Sent'] == "No"]
@@ -43,6 +45,7 @@ def get_unsent_ad():
         return None, None
 
     ad = available_ads.sample(n=1).iloc[0]  # בחירת מודעה אקראית
+    print(f"🎯 מודעה שנבחרה לשליחה: {ad['Product Desc']}")
     return ad, df
 
 # 📝 פונקציה ליצירת תוכן מודעה
@@ -67,6 +70,7 @@ def create_ad_message(ad):
 
 # ✈️ פונקציה לשליחת מודעה
 def send_ad():
+    print("📢 מנסה לשלוח מודעה...")
     ad, df = get_unsent_ad()
     if ad is None:
         return
@@ -77,10 +81,13 @@ def send_ad():
 
     try:
         if video_url:
+            print(f"🎥 שולח וידאו: {video_url}")
             bot.send_video(GROUP_ID, video_url, caption=message, parse_mode="Markdown")
         elif image_url:
+            print(f"🖼 שולח תמונה: {image_url}")
             bot.send_photo(GROUP_ID, image_url, caption=message, parse_mode="Markdown")
         else:
+            print("📩 שולח טקסט בלבד")
             bot.send_message(GROUP_ID, message, parse_mode="Markdown")
         
         print("✅ מודעה נשלחה בהצלחה!")
@@ -94,11 +101,16 @@ def send_ad():
         print(f"❌ שגיאה בשליחת מודעה: {e}")
 
 # ⏰ תזמון שליחה כל שעה עגולה
-schedule.every().hour.at(":00").do(send_ad)
+def schedule_ads():
+    print("⏳ מתזמן שליחה כל שעה עגולה...")
+    schedule.every().hour.at(":00").do(send_ad)
 
 # ✅ הפעלת שליחה ראשונית
-print("✅ הבוט התחיל לפעול... בודק חיבורים!")
+print("🚀 הבוט הופעל! שולח מודעה ראשונה...")
 send_ad()
+
+# ✅ תזמון שליחות
+schedule_ads()
 
 # 🔄 לולאת ריצה תמידית
 while True:
