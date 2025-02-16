@@ -1,118 +1,103 @@
-import os
 import time
 import random
+import logging
+from datetime import datetime, timedelta
 import pandas as pd
-import schedule
 import telebot
+import pytz
 
-# ✅ טעינת משתני סביבה
-TOKEN = os.getenv("TELEGRAM_TOKEN")
-GROUP_ID = os.getenv("TELEGRAM_GROUP_ID")
+# טוקן של הבוט
+BOT_TOKEN = "8130275609:AAFTV972VTD0Ym1xjSoxuBM99d8z4ipdSLo"
 
-if not TOKEN:
-    raise ValueError("⚠️ TELEGRAM_TOKEN חסר! יש להגדיר את משתנה הסביבה TELEGRAM_TOKEN.")
-if not GROUP_ID:
-    raise ValueError("⚠️ TELEGRAM_GROUP_ID חסר! יש להגדיר את משתנה הסביבה TELEGRAM_GROUP_ID.")
+# מזהה הקבוצה
+GROUP_ID = "-1002423906987"
 
-bot = telebot.TeleBot(TOKEN)
+# הגדרת לוגים
+logging.basicConfig(level=logging.INFO, format="%(asctime)s - %(message)s")
 
-# ✅ טעינת קובץ המודעות
-CSV_FILE = "ads.csv"
+# יצירת אובייקט בוט
+bot = telebot.TeleBot(BOT_TOKEN)
 
-# 🔄 פונקציה לטעינת נתונים מהקובץ
-def load_ads():
+# שעון ישראל
+ISRAEL_TZ = pytz.timezone("Asia/Jerusalem")
+
+# נתיבים לקבצים
+ADS_FILE = "ads.csv"  # קובץ המודעות
+SENT_ADS_FILE = "sent-ads.txt"  # קובץ למודעות שכבר נשלחו
+
+def load_products():
+    """טוען את המודעות מקובץ ads.csv"""
+    return pd.read_csv(ADS_FILE)
+
+def load_sent_products():
+    """טוען את המודעות שכבר נשלחו"""
     try:
-        df = pd.read_csv(CSV_FILE)
-        if 'Sent' not in df.columns:
-            df['Sent'] = "No"  # הוספת עמודה למעקב אם המודעה נשלחה
-        print(f"📜 קובץ נטען עם {len(df)} מודעות.")
-        return df
-    except Exception as e:
-        print(f"❌ שגיאה בטעינת הקובץ: {e}")
-        return None
+        with open(SENT_ADS_FILE, "r") as f:
+            return f.read().splitlines()
+    except FileNotFoundError:
+        return []
 
-# 🛒 פונקציה לבחירת מודעה שלא נשלחה
-def get_unsent_ad():
-    df = load_ads()
-    if df is None:
-        print("⚠️ לא ניתן לטעון את קובץ המודעות.")
-        return None, None
+def save_sent_product(product_id):
+    """שומר את המודעה שנשלחה"""
+    with open(SENT_ADS_FILE, "a") as f:
+        f.write(f"{product_id}\n")
 
-    available_ads = df[df['Sent'] == "No"]
-    
-    if available_ads.empty:
-        print("⚠️ אין מודעות חדשות לשליחה!")
-        return None, None
+def pick_random_product(products):
+    """בחירת מוצר רנדומלי שלא נשלח"""
+    sent_products = load_sent_products()
+    available_products = products[~products["ID"].astype(str).isin(sent_products)]
+    if available_products.empty:
+        logging.info("🎉 כל המודעות נשלחו! מאפסים רשימה.")
+        open(SENT_ADS_FILE, "w").close()  # איפוס הקובץ
+        available_products = products
+    return available_products.sample().iloc[0]
 
-    ad = available_ads.sample(n=1).iloc[0]  # בחירת מודעה אקראית
-    print(f"🎯 מודעה שנבחרה לשליחה: {ad['Product Desc']}")
-    return ad, df
-
-# 📝 פונקציה ליצירת תוכן מודעה
-def create_ad_message(ad):
-    product_desc = ad.get("Product Desc", "אין תיאור")
-    origin_price = ad.get("Origin Price", "לא ידוע")
-    discount_price = ad.get("Discount Price", "לא ידוע")
-    discount = ad.get("Discount", "0%")
-    feedback = ad.get("Positive Feedback", "אין מידע")
-    product_url = ad.get("Product Url", "#")
-
+def format_message(product):
+    """מכין את הודעת המוצר"""
     message = (
-        f"🎉 *מבצע מטורף!* 🎉\n\n"
-        f"📦 *{product_desc}*\n"
-        f"💸 מחיר מקורי: {origin_price}\n"
-        f"💥 מחיר לאחר הנחה: {discount_price} ({discount} הנחה!)\n"
-        f"👍 משוב חיובי: {feedback}\n\n"
-        f"🔗 [לחץ כאן למוצר]({product_url})\n\n"
-        f"מהרו לפני שייגמר! 🚀"
+        f"✨ *{product['Product Desc']}*\n\n"
+        f"💵 מחיר מקורי: {product['Origin Price']}\n"
+        f"🏷️ מחיר לאחר הנחה: {product['Discount Price']} ({product['Discount']} הנחה!)\n\n"
+        f"🌟 {product['Positive Feedback']} פידבק חיובי\n"
+        f"📦 נמכרו: {product['Sales180Day']} ב-180 הימים האחרונים\n\n"
+        f"[🔗 למידע נוסף ולרכישה]({product['Product Url']})"
     )
     return message
 
-# ✈️ פונקציה לשליחת מודעה
 def send_ad():
-    print("📢 מנסה לשלוח מודעה...")
-    ad, df = get_unsent_ad()
-    if ad is None:
+    """שולח מודעה בקבוצה"""
+    now = datetime.now(ISRAEL_TZ)
+    if not (8 <= now.hour < 23):
+        logging.info("⏳ השעה מחוץ לטווח, ממתינים...")
         return
 
-    message = create_ad_message(ad)
-    video_url = ad.get("Video Url", "").strip()
-    image_url = ad.get("Image Url", "").strip()
+    logging.info(f"⌛️ השעה {now.strftime('%H:%M')} - שולחים הודעה...")
+    products = load_products()
+    product = pick_random_product(products)
+    message = format_message(product)
 
     try:
-        if video_url:
-            print(f"🎥 שולח וידאו: {video_url}")
-            bot.send_video(GROUP_ID, video_url, caption=message, parse_mode="Markdown")
-        elif image_url:
-            print(f"🖼 שולח תמונה: {image_url}")
-            bot.send_photo(GROUP_ID, image_url, caption=message, parse_mode="Markdown")
-        else:
-            print("📩 שולח טקסט בלבד")
+        if pd.notna(product["Image Url"]):  # אם יש תמונה
+            bot.send_photo(GROUP_ID, product["Image Url"], caption=message, parse_mode="Markdown")
+        elif pd.notna(product["Video Url"]):  # אם יש וידאו
+            bot.send_video(GROUP_ID, product["Video Url"], caption=message, parse_mode="Markdown")
+        else:  # הודעה טקסטואלית בלבד
             bot.send_message(GROUP_ID, message, parse_mode="Markdown")
-        
-        print("✅ מודעה נשלחה בהצלחה!")
-        
-        # ✅ סימון המודעה כנשלחה בקובץ
-        df.loc[df["Product Desc"] == ad["Product Desc"], "Sent"] = "Yes"
-        df.to_csv(CSV_FILE, index=False)
-        print(f"📌 {ad['Product Desc']} סומן כ'נשלח'")
-
+        save_sent_product(product["ID"])
     except Exception as e:
-        print(f"❌ שגיאה בשליחת מודעה: {e}")
+        logging.error(f"⚠️ שגיאה בשליחת הודעה: {e}")
 
-# ⏰ תזמון שליחה כל שעה עגולה
-def schedule_ads():
-    print("⏳ מתזמן שליחה כל שעה עגולה...")
-    schedule.every().hour.at(":00").do(send_ad)
+def run_scheduler():
+    """מבצע תזמון לשליחת ההודעות בכל שעה עגולה"""
+    send_ad()  # שליחת הודעה מיד בהפעלה
+    while True:
+        now = datetime.now(ISRAEL_TZ)
+        next_hour = (now + timedelta(hours=1)).replace(minute=0, second=0, microsecond=0)
+        sleep_time = (next_hour - now).total_seconds()
+        logging.info(f"🕒 ממתינים לשעה העגולה הבאה ({next_hour.strftime('%H:%M')})...")
+        time.sleep(sleep_time)
+        send_ad()
 
-# ✅ הפעלת שליחה ראשונית
-print("🚀 הבוט הופעל! שולח מודעה ראשונה...")
-send_ad()
-
-# ✅ תזמון שליחות
-schedule_ads()
-
-# 🔄 לולאת ריצה תמידית
-while True:
-    schedule.run_pending()
-    time.sleep(60)
+if __name__ == "__main__":
+    logging.info("🚀 הבוט התחיל לפעול!")
+    run_scheduler()
