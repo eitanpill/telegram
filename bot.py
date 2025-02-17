@@ -31,11 +31,13 @@ def load_ads(file_path='ads.csv'):
         df = pd.read_csv(file_path)
         print(f"✅ נטענו {len(df)} מודעות בהצלחה!")
         
-        # אם אין עמודת 'Sent' נוסיף אותה עם ערך ברירת מחדל "no"
+        # אם אין עמודת 'Sent', נוסיף אותה עם ברירת מחדל "No"
         if 'Sent' not in df.columns:
-            df['Sent'] = 'no'
+            df['Sent'] = 'No'
             df.to_csv(file_path, index=False)
 
+        # לוודא שכל השורות מכילות ערכים תקינים (למנוע שגיאות בעת קריאה)
+        df.fillna("", inplace=True)
         return df
     except Exception as e:
         print(f"❌ שגיאה בטעינת קובץ המודעות: {e}")
@@ -48,22 +50,21 @@ def send_ad():
         print("⚠️ אין מודעות זמינות לשליחה.")
         return
     
-    available_ads = df[df['Sent'] == 'no']  # בודק מודעות שלא נשלחו
-    
+    available_ads = df[df['Sent'].str.lower() == 'no']  # בודק מודעות שלא נשלחו
+    print(f"📢 מודעות זמינות לשליחה: {len(available_ads)}")
+
     if available_ads.empty:
         print("🎉 כל המודעות כבר נשלחו!")
         return
     
     ad = available_ads.sample(n=1).iloc[0]  # בוחר מודעה רנדומלית
-
-    # בניית ההודעה
     product_desc = ad.get("Product Desc", "אין תיאור")
     origin_price = ad.get("Origin Price", "לא ידוע")
     discount_price = ad.get("Discount Price", "לא ידוע")
     discount = ad.get("Discount", "0%")
     product_url = ad.get("Product Url", "אין קישור")
-    image_url = ad.get("Image Url", None)
-    video_url = ad.get("Video Url", None)
+    image_url = ad.get("Image Url", "").strip()
+    video_url = ad.get("Video Url", "").strip()
     feedback = ad.get("Positive Feedback", "אין מידע")
 
     message = (
@@ -77,18 +78,18 @@ def send_ad():
     )
 
     try:
-        if pd.notna(video_url) and isinstance(video_url, str) and video_url.strip():
+        if video_url:
             bot.send_video(chat_id=GROUP_ID, video=video_url, caption=message, parse_mode="Markdown")
             print("📽️ נשלחה הודעה עם וידאו.")
-        elif pd.notna(image_url) and isinstance(image_url, str) and image_url.strip():
+        elif image_url:
             bot.send_photo(chat_id=GROUP_ID, photo=image_url, caption=message, parse_mode="Markdown")
             print("🖼️ נשלחה הודעה עם תמונה.")
         else:
             bot.send_message(chat_id=GROUP_ID, text=message, parse_mode="Markdown")
             print("📄 נשלחה הודעה ללא תמונה/וידאו.")
 
-        # עדכון העמודה "Sent" ל- "yes" כדי למנוע שליחה חוזרת
-        df.loc[df["Product Desc"] == product_desc, "Sent"] = "yes"
+        # ✅ עדכון העמודה "Sent" ל- "Yes" כדי למנוע שליחה חוזרת
+        df.loc[df["Product Desc"] == product_desc, "Sent"] = "Yes"
         df.to_csv('ads.csv', index=False)  # שמירת העדכון בקובץ
         print(f"✅ המוצר '{product_desc}' סומן כנשלח.")
     except Exception as e:
