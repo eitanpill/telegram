@@ -1,68 +1,65 @@
 import telebot
 import pandas as pd
 import random
-import time
 import os
+import time
 
-# טוקן ו-ID של הקבוצה
-BOT_TOKEN = "הכנס_כאן_את_הטוקן"
-GROUP_ID = "הכנס_כאן_את_הקבוצה"
+# טוקן הבוט וה-ID של הקבוצה
+BOT_TOKEN = os.getenv("TELEGRAM_TOKEN")
+GROUP_ID = os.getenv("TELEGRAM_GROUP_ID")
 
-# יצירת חיבור לבוט
+if not BOT_TOKEN:
+    raise ValueError("⚠️ TOKEN חסר! יש להגדיר את משתנה הסביבה TELEGRAM_TOKEN.")
+if not GROUP_ID:
+    raise ValueError("⚠️ GROUP ID חסר! יש להגדיר את משתנה הסביבה TELEGRAM_GROUP_ID.")
+
 bot = telebot.TeleBot(BOT_TOKEN)
 
-# שם קובץ המודעות
-ADS_FILE = "ads.csv"
+# טען את רשימת המודעות
+ads_file = "ads.csv"
 
+# קריאת קובץ המודעות
 def load_ads():
-    """טוען את קובץ המודעות ושומר עמודה 'sent' אם לא קיימת."""
-    df = pd.read_csv(ADS_FILE)
-    if 'sent' not in df.columns:
-        df['sent'] = False
-    return df
+    return pd.read_csv(ads_file)
 
-def save_ads(df):
-    """שומר את קובץ המודעות לאחר עדכון."""
-    df.to_csv(ADS_FILE, index=False)
+# בחירת מודעה רנדומלית שלא נשלחה
+def pick_random_ad(ads):
+    available_ads = ads[ads["Sent"] != "Yes"]  # בחירת מודעות שטרם נשלחו
+    if available_ads.empty:
+        print("📢 כל המודעות נשלחו! מאפסים רשימה...")
+        ads["Sent"] = "No"
+        ads.to_csv(ads_file, index=False)
+        available_ads = ads  # עכשיו יש מודעות לבחור מהן
 
-def pick_random_product(df):
-    """בחירת מוצר רנדומלי שלא נשלח"""
-    unsent_ads = df[df["sent"] == False]
-    if unsent_ads.empty:
-        print("📢 כל המודעות נשלחו! מאפסים את הרשימה...")
-        df["sent"] = False
-        save_ads(df)
-        unsent_ads = df
+    return available_ads.sample(n=1).iloc[0]
 
-    return unsent_ads.sample(n=1).iloc[0]
-
+# שליחת מודעה
 def send_ad():
-    """שולח מודעה רנדומלית"""
-    df = load_ads()
-    product = pick_random_product(df)
+    ads = load_ads()
+    ad = pick_random_ad(ads)
 
     message = f"""
-📢 *חדש בחנות!* 🛍️
-
-🔹 *{product['Product Desc']}*
-💰 מחיר מקורי: {product['Origin Price']}
-🔥 מחיר מבצע: {product['Discount Price']} ({product['Discount']} הנחה!)
-📦 {product['Sales180Day']} מכירות | 👍 {product['Positive Feedback']} דירוג חיובי
-🔗 [לרכישה]( {product['Product Url']} )
-
+📢 *מבצע מיוחד!*
+🛍️ {ad["Product Desc"]}
+💲 מחיר מקורי: {ad["Origin Price"]}
+🔥 מחיר אחרי הנחה: {ad["Discount Price"]} ({ad["Discount"]} הנחה!)
+👍 ביקורות חיוביות: {ad["Positive Feedback"]}
+🔗 [לרכישה]({ad["Promotion Url"]})
     """
-    
-    # שליחת ההודעה עם תמונה (אם יש)
-    if pd.notna(product['Image Url']):
-        bot.send_photo(GROUP_ID, product['Image Url'], caption=message, parse_mode="Markdown")
+
+    if not pd.isna(ad["Image Url"]):
+        bot.send_photo(GROUP_ID, ad["Image Url"], caption=message, parse_mode="Markdown")
     else:
         bot.send_message(GROUP_ID, message, parse_mode="Markdown")
 
-    # סימון המוצר כנשלח ושמירה
-    df.loc[df.index == product.name, 'sent'] = True
-    save_ads(df)
+    # סימון המודעה כנשלחה
+    ads.loc[ads["Promotion Url"] == ad["Promotion Url"], "Sent"] = "Yes"
+    ads.to_csv(ads_file, index=False)
+    print(f"✅ נשלחה מודעה: {ad['Product Desc']}")
 
-    print(f"✅ נשלחה מודעה: {product['Product Desc']}")
-
-# הפעלה ראשונית
-send_ad()
+# רוץ כל שעה וחצי בין 08:00 ל-23:00
+while True:
+    current_hour = time.localtime().tm_hour
+    if 8 <= current_hour <= 23:
+        send_ad()
+    time.sleep(90 * 60)  # המתנה של שעה וחצי
