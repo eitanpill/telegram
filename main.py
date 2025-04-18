@@ -1,119 +1,123 @@
+
 import os
-import random
-import pandas as pd
 import telebot
+import pandas as pd
 import schedule
 import time
+import random
+import threading
 from flask import Flask
-from threading import Thread
 from deep_translator import GoogleTranslator
 
-# קריאת טוקן וקבוצת טלגרם מהסביבה
-BOT_TOKEN = os.getenv("TELEGRAM_BOT_TOKEN")
+# Load environment variables
+TOKEN = os.getenv("TELEGRAM_BOT_TOKEN")
 GROUP_ID = os.getenv("TELEGRAM_GROUP_ID")
 
-if not BOT_TOKEN:
+if not TOKEN:
     raise ValueError("❌ TOKEN חסר! יש להגדיר את משתנה הסביבה TELEGRAM_BOT_TOKEN.")
+else:
+    print("✅ TOKEN נטען בהצלחה:", TOKEN[:10], "...")
+
 if not GROUP_ID:
     raise ValueError("❌ GROUP ID חסר! יש להגדיר את משתנה הסביבה TELEGRAM_GROUP_ID.")
+else:
+    print("✅ GROUP ID נטען בהצלחה:", GROUP_ID)
 
-print("✅ TOKEN נטען בהצלחה:", BOT_TOKEN[:10], "...")
-print("✅ GROUP ID נטען בהצלחה:", GROUP_ID)
+bot = telebot.TeleBot(TOKEN)
 
-bot = telebot.TeleBot(BOT_TOKEN)
-ads_file = "ads.csv"
+ADS_FILE = "ads.csv"
+ads_df = pd.read_csv(ADS_FILE)
+ads_df = ads_df.fillna("")
 
-# פתיחים אקראיים
-openers = [
-    "📢 מבצע מטורף! אל תפספסו!",
-    "🔥 דיל שחייבים לראות!",
+print(f"✅ נטענו {len(ads_df)} מודעות בהצלחה!")
+
+# פתיחים מגניבים
+openings = [
+    "🔥 אל תפספסו את זה!",
     "💥 שובר שוק במחיר שלא יחזור!",
-    "⚡️ הכי משתלם שראינו החודש!",
+    "🚨 הנחה מטורפת שמחכה רק לכם!",
+    "🎯 מציאה אמיתית שאתם חייבים לראות!",
+    "🤑 מוצר לוהט במחיר בלעדי!",
+    "🎁 עכשיו במחיר מיוחד לזמן מוגבל!",
 ]
-
-def load_ads():
-    try:
-        df = pd.read_csv(ads_file)
-        print(f"✅ נטענו {len(df)} מודעות בהצלחה!")
-        return df
-    except Exception as e:
-        print("❌ שגיאה בטעינת המודעות:", e)
-        return pd.DataFrame()
-
-def save_ads(df):
-    try:
-        df.to_csv(ads_file, index=False)
-        print("✅ המודעות נשמרו בהצלחה.")
-    except Exception as e:
-        print("❌ שגיאה בשמירת הקובץ:", e)
 
 def translate_to_hebrew(text):
     try:
         return GoogleTranslator(source='auto', target='hebrew').translate(text)
-    except Exception:
+    except Exception as e:
+        print("שגיאה בתרגום:", e)
         return text
 
 def create_ad_message(row):
-    opener = random.choice(openers)
-    desc_translated = translate_to_hebrew(str(row['Product Desc']))
+    try:
+        desc = translate_to_hebrew(str(row["Product Desc"]).strip())
+        original_price = str(row["Origin Price"]).replace("ILS", "").replace("₪", "").strip()
+        discount_price = str(row["Discount Price"]).replace("ILS", "").replace("₪", "").strip()
+        discount = str(row["Discount"]).replace("%", "").strip()
+        sales = int(row["Sales180Day"])
+        feedback = str(row["Positive Feedback"]).replace("%", "").strip()
+        url = row["Promotion Url"]
 
-    image_url = row['Video Url'] if pd.notna(row['Video Url']) else row['Image Url']
-    sales = int(row['Sales180Day']) if pd.notna(row['Sales180Day']) else 0
-    rating = f"{row['Positive Feedback']}%" if pd.notna(row['Positive Feedback']) else "לא ידוע"
-    price = f"{row['Discount Price']} ₪" if pd.notna(row['Discount Price']) else "לא זמין"
-    original_price = f"{row['Origin Price']} ₪" if pd.notna(row['Origin Price']) else ""
-    discount = f"{row['Discount']}%" if pd.notna(row['Discount']) else ""
+        # פותח רנדומלי
+        opening_line = random.choice(openings)
 
-    product_url = row['Promotion Url']
+        # בניית ההודעה
+        message = f"{opening_line}\n\n"
+        message += f"{desc}\n\n"
+        message += f"✔ {sales} מכירות! 📦\n"
+        message += f"⭐ דירוג: {feedback}% ⭐\n"
+        message += f"🎯 הנחה של {discount}%\n"
+        message += f"💰 מחיר בלעדי: ₪ {discount_price}\n"
+        message += f"🔗 לצפייה במוצר\n{url}"
 
-    message = f"""{opener}
-
-🎯 {desc_translated}
-
-✔ {sales} מכירות! 📦
-⭐ דירוג: {rating} ⭐
-💰 מחיר בלעדי: {price}
-🔗 [לצפייה במוצר]({product_url})
-"""
-    return image_url, message
+        return message
+    except Exception as e:
+        print("שגיאה ביצירת מודעה:", e)
+        return None
 
 def send_ad():
-    df = load_ads()
-    unsent = df[df['Sent'] != 'yes']
-    if unsent.empty:
-        print("🔁 כל המודעות נשלחו - מתחילים סבב חדש.")
-        df['Sent'] = ''
-        save_ads(df)
-        return
+    global ads_df
+    for index, row in ads_df.iterrows():
+        if row["Sent"] != "Yes":
+            message = create_ad_message(row)
+            if message:
+                image_url = row["Image Url"]
+                video_url = row["Video Url"]
+                try:
+                    if video_url and video_url.startswith("http"):
+                        bot.send_video(GROUP_ID, video_url, caption=message)
+                    elif image_url and image_url.startswith("http"):
+                        bot.send_photo(GROUP_ID, image_url, caption=message)
+                    else:
+                        bot.send_message(GROUP_ID, message)
+                    ads_df.at[index, "Sent"] = "Yes"
+                    ads_df.to_csv(ADS_FILE, index=False)
+                    print(f"✅ מודעה מספר {index+1} נשלחה")
+                except Exception as e:
+                    print(f"שגיאה בשליחת מודעה מספר {index+1}:", e)
+            break
+    else:
+        # כל המודעות נשלחו – אפס את העמודה
+        print("🔄 כל המודעות נשלחו. מתחילים סבב חדש.")
+        ads_df["Sent"] = ""
+        ads_df.to_csv(ADS_FILE, index=False)
 
-    row = unsent.iloc[0]
-    image_url, message = create_ad_message(row)
-
-    try:
-        if image_url.endswith(".mp4"):
-            bot.send_video(GROUP_ID, image_url, caption=message, parse_mode='Markdown')
-        else:
-            bot.send_photo(GROUP_ID, image_url, caption=message, parse_mode='Markdown')
-        print("✅ מודעה נשלחה בהצלחה.")
-    except Exception as e:
-        print("❌ שגיאה בשליחת מודעה:", e)
-        return
-
-    df.at[row.name, 'Sent'] = 'yes'
-    save_ads(df)
-
+# תזמון יומי
 def schedule_ads():
-    schedule.every(30).minutes.do(send_ad)
+    schedule.every().day.at("11:00").do(send_ad)
     while True:
         schedule.run_pending()
         time.sleep(1)
 
-# Flask app for uptime
+# שרת Flask לשמירה על פעילות הבוט
 app = Flask(__name__)
+
 @app.route('/')
-def index():
+def home():
     return "Bot is running!"
 
-if __name__ == '__main__':
-    Thread(target=schedule_ads).start()
-    app.run(host="0.0.0.0", port=8080)
+# הרצת הבוט + Flask במקביל
+if __name__ == "__main__":
+    print("✅ הבוט מוכן ומתחיל לפעול.")
+    threading.Thread(target=schedule_ads).start()
+    app.run(host="0.0.0.0", port=int(os.environ.get("PORT", 8080)))
