@@ -1,123 +1,120 @@
-
+from datetime import datetime, time as dtime
 import os
-import telebot
 import pandas as pd
+import random
+import telebot
 import schedule
 import time
-import random
-import threading
-from flask import Flask
 from deep_translator import GoogleTranslator
+from flask import Flask
+from threading import Thread
 
-# Load environment variables
-TOKEN = os.getenv("TELEGRAM_BOT_TOKEN")
-GROUP_ID = os.getenv("TELEGRAM_GROUP_ID")
+# קריאת משתני סביבה
+TELEGRAM_BOT_TOKEN = os.getenv("TELEGRAM_BOT_TOKEN")
+TELEGRAM_GROUP_ID = os.getenv("TELEGRAM_GROUP_ID")
 
-if not TOKEN:
+if not TELEGRAM_BOT_TOKEN:
     raise ValueError("❌ TOKEN חסר! יש להגדיר את משתנה הסביבה TELEGRAM_BOT_TOKEN.")
-else:
-    print("✅ TOKEN נטען בהצלחה:", TOKEN[:10], "...")
-
-if not GROUP_ID:
+if not TELEGRAM_GROUP_ID:
     raise ValueError("❌ GROUP ID חסר! יש להגדיר את משתנה הסביבה TELEGRAM_GROUP_ID.")
-else:
-    print("✅ GROUP ID נטען בהצלחה:", GROUP_ID)
 
-bot = telebot.TeleBot(TOKEN)
+print("✅ TOKEN נטען בהצלחה:", TELEGRAM_BOT_TOKEN[:10], "...")
+print("✅ GROUP ID נטען בהצלחה:", TELEGRAM_GROUP_ID)
 
-ADS_FILE = "ads.csv"
-ads_df = pd.read_csv(ADS_FILE)
-ads_df = ads_df.fillna("")
+bot = telebot.TeleBot(TELEGRAM_BOT_TOKEN)
 
+# קריאת הקובץ
+ads_df = pd.read_csv("ads.csv")
 print(f"✅ נטענו {len(ads_df)} מודעות בהצלחה!")
 
-# פתיחים מגניבים
-openings = [
-    "🔥 אל תפספסו את זה!",
+# פתיחים רנדומליים
+HEADERS = [
     "💥 שובר שוק במחיר שלא יחזור!",
-    "🚨 הנחה מטורפת שמחכה רק לכם!",
-    "🎯 מציאה אמיתית שאתם חייבים לראות!",
-    "🤑 מוצר לוהט במחיר בלעדי!",
-    "🎁 עכשיו במחיר מיוחד לזמן מוגבל!",
+    "🔥 חייבים לראות את זה!",
+    "🎯 מוצר מנצח במבצע בלעדי!",
+    "🚀 הדיל שכולם מדברים עליו!",
+    "✨ שווה בדיקה – הכי משתלם ברשת!",
+    "😱 לא תאמינו למחיר הזה!",
+    "🤑 פשוט לגנוב את זה!",
 ]
 
-def translate_to_hebrew(text):
-    try:
-        return GoogleTranslator(source='auto', target='hebrew').translate(text)
-    except Exception as e:
-        print("שגיאה בתרגום:", e)
-        return text
+# בדיקת זמן לפי שעון ישראל
+def is_israeli_daytime():
+    now = datetime.utcnow()
+    current_time = now.time()
+    return dtime(5, 30) <= current_time <= dtime(19, 0)  # 08:30–22:00 בישראל
 
-def create_ad_message(row):
-    try:
-        desc = translate_to_hebrew(str(row["Product Desc"]).strip())
-        original_price = str(row["Origin Price"]).replace("ILS", "").replace("₪", "").strip()
-        discount_price = str(row["Discount Price"]).replace("ILS", "").replace("₪", "").strip()
-        discount = str(row["Discount"]).replace("%", "").strip()
-        sales = int(row["Sales180Day"])
-        feedback = str(row["Positive Feedback"]).replace("%", "").strip()
-        url = row["Promotion Url"]
+# בניית הודעה
+def create_ad_message(ad):
+    image_url = ad['Image Url']
+    video_url = ad['Video Url']
+    desc = GoogleTranslator(source='auto', target='he').translate(ad['Product Desc'])
 
-        # פותח רנדומלי
-        opening_line = random.choice(openings)
+    origin_price = ad['Origin Price']
+    discount_price = ad['Discount Price']
+    discount = ad['Discount']
+    sales = ad['Sales180Day']
+    rating = ad['Positive Feedback']
+    product_url = ad['Promotion Url']
 
-        # בניית ההודעה
-        message = f"{opening_line}\n\n"
-        message += f"{desc}\n\n"
-        message += f"✔ {sales} מכירות! 📦\n"
-        message += f"⭐ דירוג: {feedback}% ⭐\n"
-        message += f"🎯 הנחה של {discount}%\n"
-        message += f"💰 מחיר בלעדי: ₪ {discount_price}\n"
-        message += f"🔗 לצפייה במוצר\n{url}"
+    header = random.choice(HEADERS)
 
-        return message
-    except Exception as e:
-        print("שגיאה ביצירת מודעה:", e)
-        return None
+    message = f"""{header}
 
+{desc}
+
+✔ {int(sales)} מכירות! 📦
+⭐ דירוג: {str(rating).rstrip('%')}% ⭐
+💰 מחיר בלעדי: ₪{discount_price} (במקום ₪{origin_price}, הנחה של {discount}%)
+🔗 לצפייה במוצר: {product_url}
+"""
+    return message.strip(), video_url if pd.notna(video_url) and video_url.endswith('.mp4') else image_url
+
+# שליחת מודעה
 def send_ad():
     global ads_df
-    for index, row in ads_df.iterrows():
-        if row["Sent"] != "Yes":
-            message = create_ad_message(row)
-            if message:
-                image_url = row["Image Url"]
-                video_url = row["Video Url"]
-                try:
-                    if video_url and video_url.startswith("http"):
-                        bot.send_video(GROUP_ID, video_url, caption=message)
-                    elif image_url and image_url.startswith("http"):
-                        bot.send_photo(GROUP_ID, image_url, caption=message)
-                    else:
-                        bot.send_message(GROUP_ID, message)
-                    ads_df.at[index, "Sent"] = "Yes"
-                    ads_df.to_csv(ADS_FILE, index=False)
-                    print(f"✅ מודעה מספר {index+1} נשלחה")
-                except Exception as e:
-                    print(f"שגיאה בשליחת מודעה מספר {index+1}:", e)
-            break
-    else:
-        # כל המודעות נשלחו – אפס את העמודה
-        print("🔄 כל המודעות נשלחו. מתחילים סבב חדש.")
-        ads_df["Sent"] = ""
-        ads_df.to_csv(ADS_FILE, index=False)
+    if "Sent" not in ads_df.columns:
+        ads_df["Sent"] = False
 
-# תזמון יומי
+    unsent_ads = ads_df[ads_df["Sent"] != True]
+    if unsent_ads.empty:
+        print("🔄 כל המודעות נשלחו. מתחילים סבב חדש.")
+        ads_df["Sent"] = False
+        unsent_ads = ads_df
+
+    ad = unsent_ads.sample(1).iloc[0]
+    message, media_url = create_ad_message(ad)
+
+    try:
+        if media_url.endswith(".mp4"):
+            bot.send_video(chat_id=TELEGRAM_GROUP_ID, video=media_url, caption=message)
+        else:
+            bot.send_photo(chat_id=TELEGRAM_GROUP_ID, photo=media_url, caption=message)
+        ads_df.loc[ads_df.index == ad.name, "Sent"] = True
+        ads_df.to_csv("ads.csv", index=False)
+        print("✅ מודעה נשלחה בהצלחה.")
+    except Exception as e:
+        print("❌ שגיאה בשליחת מודעה:", e)
+
+# תזמון
 def schedule_ads():
-    schedule.every().day.at("11:00").do(send_ad)
+    print("⏰ מתזמן מודעות כל שעה וחצי בין 08:30 ל-22:00 לפי שעון ישראל.")
+    schedule.every(90).minutes.do(lambda: send_ad() if is_israeli_daytime() else print("⏳ מחכים לשעות הפעילות..."))
     while True:
         schedule.run_pending()
         time.sleep(1)
 
-# שרת Flask לשמירה על פעילות הבוט
+# אפליקציית Flask ל-Render
 app = Flask(__name__)
 
 @app.route('/')
 def home():
-    return "Bot is running!"
+    return "הבוט באוויר! 🎈"
 
-# הרצת הבוט + Flask במקביל
+def run_flask():
+    app.run(host="0.0.0.0", port=8080)
+
+# הרצת הכל
 if __name__ == "__main__":
-    print("✅ הבוט מוכן ומתחיל לפעול.")
-    threading.Thread(target=schedule_ads).start()
-    app.run(host="0.0.0.0", port=int(os.environ.get("PORT", 8080)))
+    Thread(target=run_flask).start()
+    Thread(target=schedule_ads).start()
