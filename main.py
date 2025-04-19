@@ -48,13 +48,13 @@ def is_israeli_daytime():
 def create_ad_message(ad):
     image_url = ad['Image Url']
     video_url = ad['Video Url']
-    desc = GoogleTranslator(source='auto', target='he').translate(ad['Product Desc'])
+    desc = GoogleTranslator(source='auto', target='iw').translate(ad['Product Desc'])
 
     origin_price = ad['Origin Price']
     discount_price = ad['Discount Price']
     discount = ad['Discount']
-    sales = ad['Sales180Day']
-    rating = ad['Positive Feedback']
+    sales = int(ad['Sales180Day'])
+    rating = str(ad['Positive Feedback']).rstrip('%')
     product_url = ad['Promotion Url']
 
     header = random.choice(HEADERS)
@@ -63,14 +63,14 @@ def create_ad_message(ad):
 
 {desc}
 
-✔ {int(sales)} מכירות! 📦
-⭐ דירוג: {str(rating).rstrip('%')}% ⭐
+✔ {sales} מכירות! 📦
+⭐ דירוג: {rating}% ⭐
 💰 מחיר בלעדי: ₪{discount_price} (במקום ₪{origin_price}, הנחה של {discount}%)
 🔗 לצפייה במוצר: {product_url}
 """
     return message.strip(), video_url if pd.notna(video_url) and video_url.endswith('.mp4') else image_url
 
-# שליחת מודעה
+# שליחת מודעה אקראית
 def send_ad():
     global ads_df
     if "Sent" not in ads_df.columns:
@@ -82,7 +82,7 @@ def send_ad():
         ads_df["Sent"] = False
         unsent_ads = ads_df
 
-    ad = unsent_ads.sample(1).iloc[0]
+    ad = unsent_ads.sample(1).iloc[0]  # בוחר אקראית
     message, media_url = create_ad_message(ad)
 
     try:
