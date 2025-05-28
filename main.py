@@ -80,6 +80,7 @@ def send_ad():
     if unsent_ads.empty:
         print("🔄 כל המודעות נשלחו. מתחילים סבב חדש.")
         ads_df["Sent"] = False
+        ads_df.to_csv("ads.csv", index=False)
         unsent_ads = ads_df
 
     ad = unsent_ads.sample(1).iloc[0]  # בוחר אקראית
