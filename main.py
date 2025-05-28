@@ -116,5 +116,6 @@ def run_flask():
 
 # הרצת הכל
 if __name__ == "__main__":
+    send_ad()  # שליחה מיידית לבדיקה
     Thread(target=run_flask).start()
     Thread(target=schedule_ads).start()
